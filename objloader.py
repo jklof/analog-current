@@ -1,4 +1,5 @@
 from tft2 import DisplayController
+import re
 
 class OBJLoader:
     def __init__(self, file_path):
@@ -42,6 +43,42 @@ class OBJLoader:
                     # Line segments (vertex indices)
                     line_segment = [int(elem) - 1 for elem in elements[1:]]
                     self.objects[self.current_object]['lines'].append(line_segment)
+
+
+
+    def print_as_c_header(self, output_file, target_max_value=127):
+
+        # Find the maximum absolute value among vertices
+        max_abs_value = 0
+        for v in self.vertices:
+            max_abs_value = max(max_abs_value, abs(v[0]), abs(v[2]))
+        # Calculate the scale factor to fit the maximum value into target_max_value
+        scale = target_max_value / max_abs_value
+
+        # Open the output file for writing
+        with open(output_file, 'w') as file:
+
+            file.write("const int8_t vertices[] PROGMEM = {\n")
+            for v in self.vertices:
+                x = int(v[0] * scale)
+                y = int(v[2] * scale)
+                file.write( f"{x}, {y},\n")
+
+            file.write("};\n")
+
+            for object_name, object_data in self.objects.items():
+                clean_label = clean_name = re.sub(r'[^A-Za-z0-9]+', '_', object_name)
+                file.write("const uint16_t {0}_Lines[] PROGMEM = {{".format(clean_label))
+
+                adv = int( self.horiz_advance(object_name) * scale )
+
+                file.write(f"/* adv*/ {adv}, /*vi*/ ")
+
+
+                for line_segment in object_data['lines']:
+                    line_str = ", ".join(str(idx) for idx in line_segment)
+                    file.write("{0}, ".format(line_str))
+                file.write("};\n")
 
 
     def boundingbox(self, object_name):
@@ -127,12 +164,17 @@ class OBJLoader:
 if __name__ == '__main__':
 
     vfont = OBJLoader("./vfont.obj")
+
+    vfont.print_as_c_header('./tft_display/vfont.h')
+
     with DisplayController('COM7') as dc:
         dc.sync()
         dc.console(False)
+        dc.color(0xff,0xff,0xff)
         dc.clear()
         vfont.print(dc, "..-+BAUHAUS 93 FONT+-..", 0, 30, 30)
         vfont.print(dc, '0123456789.+-:', 0,100,60)
         vfont.print(dc, 'ABCDEFGHIJKLMN', 0,160,60)
         vfont.print(dc, 'OPQRSTUVWXYZ', 0,220,60)
         vfont.print(dc, '¤', 0,280,60)
+

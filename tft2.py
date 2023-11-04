@@ -15,6 +15,7 @@ class cmd(Enum):
     rect = 8
     circle = 9
     fillcircle = 10
+    vtext = 11
 
     sync = 0xfe
     console = 0xff
@@ -109,6 +110,14 @@ class DisplayController:
         p = struct.pack('>Bhh', cmd.print.value, x, y) + s.encode('utf-8') + b'\0'
         self._send(p)
 
+    def vtext(self, text, x, y, scale):
+        maxlen = 200
+        s = str(text)
+        if len(s) > maxlen:
+            s = s[:maxlen]
+        p = struct.pack('>Bhhh', cmd.vtext.value, x, y, scale) + s.encode('utf-8') + b'\0'
+        self._send(p)
+
     def font(self, f):
         p = struct.pack('BB', cmd.font.value, f)
         self._send(p)
@@ -119,10 +128,11 @@ if __name__ == '__main__':
         display.sync()
         display.console(False)
         display.clear()
-        display.print("TEST HELLO", 0, 0)
-        display.color(0xff, 0xff, 0xff)
-        display.box(0, 10, 479, 319)
-        display.color(0x10,0x80,0xff)
-        display.fillcircle(240,160,100)
-        display.sync()
+        display.color(0x80,0xff,0x30)
+        display.vtext("TEST", 0, 100, 200)
+        #display.color(0xff, 0xff, 0xff)
+        #display.box(0, 10, 479, 319)
+        #display.color(0x10,0x80,0xff)
+        #display.fillcircle(240,160,100)
+        #display.sync()
         time.sleep(5)
