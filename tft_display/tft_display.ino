@@ -119,6 +119,24 @@ struct Console {
     s[4] = 0;
     print(s);
   }
+
+  void hex32(uint32_t u) {
+    if (!enabled)
+      return;
+    const char h[] = "0123456789abcdef";
+    char s[9];
+    s[0] = h[(u>>28)&0xf];
+    s[1] = h[(u>>24)&0xf];
+    s[2] = h[(u>>20)&0xf];
+    s[3] = h[(u>>16)&0xf];
+    s[4] = h[(u>>12)&0xf];
+    s[5] = h[(u>>8)&0xf];
+    s[6] = h[(u>>4)&0xf];
+    s[7] = h[(u>>0)&0xf];
+    s[8] = 0;
+    print(s);
+  }
+
   void debug(bool en) {
     enabled = en;
     yline = 0;
@@ -327,8 +345,10 @@ void cmd::dispatch() {
 
 
 
-unsigned long previousMillis = 0;
-const long interval = 65*60*1000;  // 1 hour 5 min
+uint32_t previousMillis = 0l;
+const uint32_t interval = 2*60*1000l;  //
+
+uint32_t current_secs = 0;
 
 void disconnected()
 {
@@ -355,7 +375,8 @@ void setup() {
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
+  uint32_t currentMillis = millis();
+
   if (command.readFromSerial()) {
     command.dispatch();
     previousMillis = currentMillis;
@@ -370,5 +391,7 @@ void loop() {
       disconnected();
       previousMillis = currentMillis;
     }
+
+
   }
 }
