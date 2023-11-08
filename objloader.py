@@ -147,7 +147,7 @@ class OBJLoader:
             'X' : 'Letter.X',
             'Y' : 'Letter.Y',
             'Z' : 'Letter.Z',
-            '¤' : 'Symbol.ce_kwh'
+            '$' : 'Symbol.ce_kwh'
         }
         for char in text:
             if char == ' ': # specially handle space
@@ -169,12 +169,11 @@ if __name__ == '__main__':
 
     with DisplayController('COM7') as dc:
         dc.sync()
-        dc.console(False)
         dc.color(0xff,0xff,0xff)
         dc.clear()
         vfont.print(dc, "..-+BAUHAUS 93 FONT+-..", 0, 30, 30)
         vfont.print(dc, '0123456789.+-:', 0,100,60)
         vfont.print(dc, 'ABCDEFGHIJKLMN', 0,160,60)
         vfont.print(dc, 'OPQRSTUVWXYZ', 0,220,60)
-        vfont.print(dc, '¤', 0,280,60)
+        vfont.print(dc, '$', 0,280,60)
 

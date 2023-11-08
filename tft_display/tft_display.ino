@@ -1,6 +1,8 @@
 #include <limits.h>
-#include <UTFTGLUE.h>              //use GLUE class and constructor
-UTFTGLUE myGLCD(0,A2,A1,A3,A4,A0); //all dummy args
+#include <MCUFRIEND_kbv.h>
+MCUFRIEND_kbv tft;
+uint16_t tft_color = 0xffff;
+uint16_t tft_bgcolor = 0x0000;
 
 #include "vfont.h"
 
@@ -60,7 +62,7 @@ int drawletter(char chr, int x, int y, int scale) {
   const int16_t *lines = font_map[0].lines;
   const int16_t *end  = lines + font_map[0].size;
   for (unsigned i=0; i< sizeof(font_map)/sizeof(font_map[0]); i++) {
-    if ( font_map[i].chr == chr) {
+    if (font_map[i].chr == chr) {
       lines = font_map[i].lines;
       end = lines + font_map[i].size;
       break;
@@ -74,7 +76,7 @@ int drawletter(char chr, int x, int y, int scale) {
     const int ay = (int(int8_t(pgm_read_byte(vertices+v1+1))) * scale) / 127;
     const int bx = (int(int8_t(pgm_read_byte(vertices+v2+0))) * scale) / 127;
     const int by = (int(int8_t(pgm_read_byte(vertices+v2+1))) * scale) / 127;
-    myGLCD.drawLine(ax+x,ay+y, bx+x, by+y);
+    tft.drawLine(ax+x,ay+y, bx+x, by+y, tft_color);
     lines += 2;
   }
   return horiz_advance;
@@ -89,59 +91,6 @@ int drawtext(const char *text, int x, int y, int scale)
   return hz_advance;
 }
 
-
-
-
-struct Console {
-  bool enabled;
-  int yline;
-  Console() {
-    enabled = true;
-    yline = 0;
-  }
-  void print(char *text) {
-    if (!enabled)
-      return;
-    myGLCD.print(text, 0, yline);
-    yline += 10;
-      if (yline >= 320)
-        yline = 0;
-  }
-  void hex(uint16_t u) {
-    if (!enabled)
-      return;
-    const char h[] = "0123456789abcdef";
-    char s[5];
-    s[0] = h[(u>>12)&0xf];
-    s[1] = h[(u>>8)&0xf];
-    s[2] = h[(u>>4)&0xf];
-    s[3] = h[(u>>0)&0xf];
-    s[4] = 0;
-    print(s);
-  }
-
-  void hex32(uint32_t u) {
-    if (!enabled)
-      return;
-    const char h[] = "0123456789abcdef";
-    char s[9];
-    s[0] = h[(u>>28)&0xf];
-    s[1] = h[(u>>24)&0xf];
-    s[2] = h[(u>>20)&0xf];
-    s[3] = h[(u>>16)&0xf];
-    s[4] = h[(u>>12)&0xf];
-    s[5] = h[(u>>8)&0xf];
-    s[6] = h[(u>>4)&0xf];
-    s[7] = h[(u>>0)&0xf];
-    s[8] = 0;
-    print(s);
-  }
-
-  void debug(bool en) {
-    enabled = en;
-    yline = 0;
-  }
-} console;
 
 
 struct cmdbuf {
@@ -179,15 +128,13 @@ struct cmd : cmdbuf {
     bgcolor = 3,
     box = 4,
     line = 5,
-    print = 6,
-    font = 7,
-    rect = 8,
-    circle = 9,
-    fillcircle = 10,
-    vtext = 11,
+    rect = 6,
+    circle = 7,
+    fillcircle = 8,
+    vtext = 9,
+    filltriangle = 10,
 
     sync = 0xfe,
-    console = 0xff
 
   };
 
@@ -195,16 +142,13 @@ struct cmd : cmdbuf {
   // stop and return true if full message was
   // received
   bool readFromSerial();
-
   void dispatch();
-
 } command;
 
 
 bool cmd::readFromSerial() {
   int byte;
   while ( (byte = Serial.read()) >= 0) {
-    ::console.hex(byte);
     if ( add(byte) ) {
       return true;
     }
@@ -224,19 +168,19 @@ void cmd::dispatch() {
 
       case clear:
         if (size == 1) {
-          myGLCD.clrScr();
+          tft.fillScreen(tft_bgcolor);
         }
         break;
 
       case color:
         if (size ==  1 + 3) {
-          myGLCD.setColor(p[0],p[1],p[2]);
+          tft_color =  ((p[0]&0xF8) << 8) | ((p[1]&0xFC) << 3) | (p[2]>>3);
         }
         break;
 
       case bgcolor:
         if (size == 1 + 3) {
-          myGLCD.setBackColor(p[0],p[1],p[2]);
+          tft_bgcolor =  ((p[0]&0xF8) << 8) | ((p[1]&0xFC) << 3) | (p[2]>>3);
         }
         break;
 
@@ -246,7 +190,10 @@ void cmd::dispatch() {
           uint16_t y0 = (uint16_t(p[2])<<8) | uint16_t(p[3]);
           uint16_t x1 = (uint16_t(p[4])<<8) | uint16_t(p[5]);
           uint16_t y1 = (uint16_t(p[6])<<8) | uint16_t(p[7]);
-          myGLCD.fillRect(x0,y0,x1,y1);
+          int w = int(x1) - int(x0) + 1, h = int(y1) - int(y0) + 1;
+          if (w < 0) { x0 = x1; w = -w; }
+          if (h < 0) { y0 = y1; h = -h; }
+          tft.fillRect(x0, y0, w, h, tft_color);
         }
         break;
 
@@ -256,17 +203,7 @@ void cmd::dispatch() {
           uint16_t y0 = (uint16_t(p[2])<<8) | uint16_t(p[3]);
           uint16_t x1 = (uint16_t(p[4])<<8) | uint16_t(p[5]);
           uint16_t y1 = (uint16_t(p[6])<<8) | uint16_t(p[7]);
-          myGLCD.drawLine(x0,y0,x1,y1);
-        }
-        break;
-
-      case print:
-        if (size > 1 + 2*2) {
-          uint16_t x0 = (uint16_t(p[0])<<8) | uint16_t(p[1]);
-          uint16_t y0 = (uint16_t(p[2])<<8) | uint16_t(p[3]);
-          char* text = (char*)(p+4);
-          data[size-1] = 0; // enforce null
-          myGLCD.print(text,x0,y0);
+          tft.drawLine(x0,y0,x1,y1, tft_color);
         }
         break;
 
@@ -281,31 +218,16 @@ void cmd::dispatch() {
         }
         break;
 
-#if 0 // avoid pulling fonts code to ROM
-      case font:
-        if (size ==  1+1) {
-          switch(p[0]) {
-            case 0:
-              myGLCD.setFont(SmallFont);
-              break;
-            case 1:
-              myGLCD.setFont(BigFont);
-              break;
-            case 2:
-              myGLCD.setFont(SevenSegNumFont);
-              break;
-          }
-        }
-        break;
-#endif
-
       case rect:
         if (size == 1 + 4*2) {
           uint16_t x0 = (uint16_t(p[0])<<8) | uint16_t(p[1]);
           uint16_t y0 = (uint16_t(p[2])<<8) | uint16_t(p[3]);
           uint16_t x1 = (uint16_t(p[4])<<8) | uint16_t(p[5]);
           uint16_t y1 = (uint16_t(p[6])<<8) | uint16_t(p[7]);
-          myGLCD.drawRect(x0,y0,x1,y1);
+          int w = int(x1) - int(x0) + 1, h = int(y1) - int(y0) + 1;
+          if (w < 0) { x0 = x1; w = -w; }
+          if (h < 0) { y0 = y1; h = -h; }
+          tft.drawRect(x0, y0, w, h, tft_color);
         }
         break;
 
@@ -314,7 +236,7 @@ void cmd::dispatch() {
           uint16_t x = (uint16_t(p[0])<<8) | uint16_t(p[1]);
           uint16_t y = (uint16_t(p[2])<<8) | uint16_t(p[3]);
           uint16_t r = (uint16_t(p[4])<<8) | uint16_t(p[5]);
-          myGLCD.drawCircle(x,y,r);
+          tft.drawCircle(x,y,r, tft_color);
         }
         break;
 
@@ -323,16 +245,20 @@ void cmd::dispatch() {
           uint16_t x = (uint16_t(p[0])<<8) | uint16_t(p[1]);
           uint16_t y = (uint16_t(p[2])<<8) | uint16_t(p[3]);
           uint16_t r = (uint16_t(p[4])<<8) | uint16_t(p[5]);
-          myGLCD.fillCircle(x,y,r);
+          tft.fillCircle(x,y,r, tft_color);
         }
         break;
-
-
-      case console:
-        if (size ==  1+1) {
-          ::console.debug(p[0]);
-        }
-        break;
+      
+      case filltriangle:
+        if (size == 1 + 4*2) {
+          uint16_t x0 = (uint16_t(p[0])<<8) | uint16_t(p[1]);
+          uint16_t y0 = (uint16_t(p[2])<<8) | uint16_t(p[3]);
+          uint16_t x1 = (uint16_t(p[4])<<8) | uint16_t(p[5]);
+          uint16_t y1 = (uint16_t(p[6])<<8) | uint16_t(p[7]);
+          uint16_t x2 = (uint16_t(p[8])<<8) | uint16_t(p[9]);
+          uint16_t y2 = (uint16_t(p[10])<<8) | uint16_t(p[11]);
+          tft.fillTriangle(x0,y0,x1,y1,x2,y2, tft_color);
+        }      
 
       default:
         break;
@@ -353,22 +279,40 @@ uint32_t current_secs = 0;
 void disconnected()
 {
   // draw disconnected message
-  myGLCD.setColor(255,255,255);
-  myGLCD.clrScr();
-  myGLCD.setColor(0xff,0xff,0xff);
+  tft.fillScreen(0x0000);
+  tft_color = 0xffff;
   drawtext("DISCONNECTED..", 0, 100, 100);
 }
 
+
+void hex(char *s, uint16_t u) {
+  const char h[] = "0123456789ABCDEF";
+  s[0] = h[(u>>12)&0xf];
+  s[1] = h[(u>>8)&0xf];
+  s[2] = h[(u>>4)&0xf];
+  s[3] = h[(u>>0)&0xf];
+  s[4] = 0;
+  return s;
+}
+
 void setup() {
-  // put your setup code here, to run once:
-  myGLCD.InitLCD();
-  myGLCD.setFont(SmallFont);
+
+
+  uint16_t ID = tft.readID();
+  tft.begin(ID);
+  tft.setRotation(1); //Landscape
+
   // set up serial
   Serial.begin(115200);
 
   // draw ready message
-  myGLCD.clrScr();
-  myGLCD.setColor(0xff,0xff,0xff);
+  tft.fillScreen(0x0000);
+  tft_color = 0xffff;
+
+  char s[7];
+  s[0] = 'I'; s[1] = 'D';
+  hex(s+2,ID);
+  drawtext(s, 0, 50, 60);
   drawtext("READY..", 0, 100, 100);
 
   previousMillis = millis();

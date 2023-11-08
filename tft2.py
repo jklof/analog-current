@@ -10,15 +10,13 @@ class cmd(Enum):
     bgcolor = 3
     box = 4
     line = 5
-    print = 6
-    font = 7
-    rect = 8
-    circle = 9
-    fillcircle = 10
-    vtext = 11
+    rect = 6
+    circle = 7
+    fillcircle = 8
+    vtext = 9
+    filltrianvle = 10
 
     sync = 0xfe
-    console = 0xff
 
 class DisplayController:
 
@@ -67,9 +65,6 @@ class DisplayController:
             self.s.write(struct.pack('BB', 1, cmd.sync.value))
             self.s.flush()
             sret = self.s.read(1)
-
-    def console(self, enable=True):
-        self._send(struct.pack('BB', cmd.console.value, enable))
 
     def clear(self):
         self._send(struct.pack('B', cmd.clear.value))
@@ -126,13 +121,13 @@ class DisplayController:
 if __name__ == '__main__':
     with DisplayController('COM7') as display:
         display.sync()
-        display.console(False)
+        display.bgcolor(0xff,00,00)
         display.clear()
         display.color(0x80,0xff,0x30)
         display.vtext("TEST", 0, 100, 200)
-        #display.color(0xff, 0xff, 0xff)
-        #display.box(0, 10, 479, 319)
+        display.color(0xff, 0xff, 0xff)
+        display.box(0, 200, 479, 319)
         #display.color(0x10,0x80,0xff)
         #display.fillcircle(240,160,100)
-        #display.sync()
+        display.sync()
         time.sleep(5)

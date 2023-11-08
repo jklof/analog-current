@@ -2,8 +2,6 @@ import requests
 from datetime import datetime
 from datetime import timedelta
 from tft2 import DisplayController
-import time
-import json
 import argparse
 import threading
 import pytz
@@ -14,15 +12,17 @@ DEFAULT_PRICE_MARGIN = 0.0
 DEFAULT_COM_PORT = 'COM7'
 
 
-# event stuff
+# Event-related variables
 g_quit_flag = False
 g_lock = threading.Lock()
 g_condition = threading.Condition(g_lock)
 
 
 def fetch_porssisahko_net_all():
-
-    print("fetching")
+    """
+    Fetch electricity price data from the Porssisahko API and process it.
+    Returns a sorted list of price data.
+    """
 
     url = "https://api.porssisahko.net/v1/latest-prices.json"
     response = requests.get(url)
@@ -47,19 +47,26 @@ def fetch_porssisahko_net_all():
 
 class Updater:
     def __init__(self):
+        """
+        Initialize the Updater with the last update time and fetched data.
+        """
         self.last_update = datetime.now()
         self.data = fetch_porssisahko_net_all()
 
-    # next update time, based on the last update time
     def next_update_time(self):
-        # if there is no data, try again in 5 min
+        """
+        Calculate the next update time based on the last update time.
+        If there is no data, retry in 5 minutes; otherwise, update on the next full hour.
+        """
         if self.data is None:
             return self.last_update + timedelta(mins=5)
 
-        # otherwise, update next full hour
         return self.last_update.replace(minute=0,second=0,microsecond=0) + timedelta(hours=1)
 
     def get_data(self):
+        """
+        Get the data, first updating if the current time exceeds the update time.
+        """
         current_time = datetime.now()
         if current_time >= self.next_update_time():
             self.data = fetch_porssisahko_net_all()
@@ -69,6 +76,9 @@ class Updater:
 
 
 def gradient_color(value):
+    """
+    Calculate a gradient color based on the given value.
+    """
     colors = [(0, 255, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0)]
     positions = [0.0, 0.25, 0.5, 1.0]
 
@@ -84,38 +94,47 @@ def gradient_color(value):
 
     return colors[-1]
 
-#gradient color based on price
 def select_color(price):
+    """
+    Calculate a color based on the price value.
+    """
     cool = 4
     warm = 20
     p = min(max(0, (price-cool) / (warm-cool)), 1)
     return gradient_color(p)
 
-#default text color
 def text_color():
+    """
+    Return the default text color.
+    """
     return (0xaa,0xaa,0xcc)
 
 
 class Dash:
     def __init__(self, dc):
-        # Create a thread that runs the member function
+        """
+        Initialize the Dash with the display controller and start a thread to run the Dash.
+        """
         self.dc = dc
         self.updater = Updater()
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
 
     def join(self):
+        """
+        Wait for the Dash thread to finish.
+        """
         self.thread.join()
 
-    # prints the main graph based on the self.data
     def draw_price_graph(self):
-
+        """
+        Draw the main price graph on the display.
+        """
         # get latest data
         data = self.updater.get_data()
 
         # failed to fetch?
         if data is None:
-            print("fetch failed")
             dc.color(0, 0, 0)
             dc.box(0,0, 479, 290)
             self.dc.color(0xaa, 0x0, 0x0)
@@ -193,22 +212,24 @@ class Dash:
             self.dc.line(int(xo + x*dx), int(yo), int(xo+x*dx), int(yo-y*dy))
 
 
-    # an hour from now or closest next startDate that is in the future
     def next_update_time_in_seconds(self):
+        """
+        Calculate the time in seconds until the next update is required.
+        """
         td = self.updater.next_update_time() - datetime.now()
-        print(f"dash waiting, updating next in {td}")
         return max(0,td.total_seconds())
 
     def run(self):
+        """
+        Run the Dash thread, continuously updating the display.
+        """
         global g_lock, g_quit_flag
         try:
             # This is the function that will run in the thread
             with g_lock:
                 while not g_quit_flag:
-                    print("graphing")
                     self.draw_price_graph()
                     g_condition.wait(self.next_update_time_in_seconds())
-                print("dash quitting")
         except:
             traceback.print_exc()
             with g_lock:
@@ -218,40 +239,48 @@ class Dash:
 
 class Clock:
     def __init__(self, dc):
-        # Create a thread that runs the member function
+        """
+        Initialize the Clock with the display controller and start a thread to run the Clock.
+        """
         self.dc = dc
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
 
     def join(self):
+        """
+        Wait for the Clock thread to finish.
+        """
         self.thread.join()
 
-    # draw the clock
     def draw_clock(self):
+        """
+        Draw the current time on the display.
+        """
         self.clock_time = datetime.now()
         timestr = self.clock_time.strftime('%H:%M')
-        print(f"current_time: {timestr}")
         dc.color(0,0,0)
         dc.box(0,294,110,310)
         dc.color(*text_color())
         dc.vtext(f'TIME {timestr}', 0, 310, 40)
 
-    # seconds to next minute
     def next_update_time_in_seconds(self):
+        """
+        Calculate the time in seconds until the next minute.
+        """
         next_time = self.clock_time.replace(second=0,microsecond=0) + timedelta(minutes=1)
         td = next_time - datetime.now()
-        print(f"clock waiting, updating next in {td}")
         return max(0,td.total_seconds())
 
     def run(self):
+        """
+        Run the Clock thread, continuously updating the display with the current time.
+        """
         global g_lock,g_quit_flag
         try:
-            # This is the function that will run in the thread
             with g_lock:
                 while not g_quit_flag:
                     self.draw_clock()
                     g_condition.wait(self.next_update_time_in_seconds())
-                print("clock quitting")
         except:
             traceback.print_exc()
             with g_lock:
@@ -260,7 +289,6 @@ class Clock:
 
 
 if __name__ == '__main__':
-
 
     # Create an argument parser
     parser = argparse.ArgumentParser(description='Display electricity price on TFT screen.')
@@ -273,7 +301,6 @@ if __name__ == '__main__':
     with DisplayController(args.com_port) as dc:
 
         dc.sync()
-        dc.console(False)
         dc.clear()
         dc.vtext("DASH", 0,0, 150)
 
@@ -290,7 +317,6 @@ if __name__ == '__main__':
 
         finally:
             with g_lock:
-                print("quit")
                 g_quit_flag = True
                 g_condition.notify_all()
 
