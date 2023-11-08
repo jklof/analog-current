@@ -4,88 +4,78 @@ MCUFRIEND_kbv tft;
 uint16_t tft_color = 0xffff;
 uint16_t tft_bgcolor = 0x0000;
 
-#include "vfont.h"
+#include "bauhaus_lines.h"
+#include "bauhaus_tris.h"
 
-const struct {
-  const char chr;
-  const int16_t *lines;
-  const size_t size;
-} font_map[] = {
-  {'.', Number_dot_Lines, sizeof(Number_dot_Lines) / sizeof(Number_dot_Lines[0])},
-  {'+', Number_plus_Lines, sizeof(Number_plus_Lines) / sizeof(Number_plus_Lines[0])},
-  {'-', Number_minus_Lines, sizeof(Number_minus_Lines) / sizeof(Number_minus_Lines[0])},
-  {':', Number_dot2_Lines, sizeof(Number_dot2_Lines) / sizeof(Number_dot2_Lines[0])},
 
-  {'0', Number_0_Lines, sizeof(Number_0_Lines) / sizeof(Number_0_Lines[0])},
-  {'1', Number_1_Lines, sizeof(Number_1_Lines) / sizeof(Number_1_Lines[0])},
-  {'2', Number_2_Lines, sizeof(Number_2_Lines) / sizeof(Number_2_Lines[0])},
-  {'3', Number_3_Lines, sizeof(Number_3_Lines) / sizeof(Number_3_Lines[0])},
-  {'4', Number_4_Lines, sizeof(Number_4_Lines) / sizeof(Number_4_Lines[0])},
-  {'5', Number_5_Lines, sizeof(Number_5_Lines) / sizeof(Number_5_Lines[0])},
-  {'6', Number_6_Lines, sizeof(Number_6_Lines) / sizeof(Number_6_Lines[0])},
-  {'7', Number_7_Lines, sizeof(Number_7_Lines) / sizeof(Number_7_Lines[0])},
-  {'8', Number_8_Lines, sizeof(Number_8_Lines) / sizeof(Number_8_Lines[0])},
-  {'9', Number_9_Lines, sizeof(Number_9_Lines) / sizeof(Number_9_Lines[0])},
-  {'A', Letter_A_Lines, sizeof(Letter_A_Lines) / sizeof(Letter_A_Lines[0])},
-  {'B', Letter_B_Lines, sizeof(Letter_B_Lines) / sizeof(Letter_B_Lines[0])},
-  {'C', Letter_C_Lines, sizeof(Letter_C_Lines) / sizeof(Letter_C_Lines[0])},
-  {'D', Letter_D_Lines, sizeof(Letter_D_Lines) / sizeof(Letter_D_Lines[0])},
-  {'E', Letter_E_Lines, sizeof(Letter_E_Lines) / sizeof(Letter_E_Lines[0])},
-  {'F', Letter_F_Lines, sizeof(Letter_F_Lines) / sizeof(Letter_F_Lines[0])},
-  {'G', Letter_G_Lines, sizeof(Letter_G_Lines) / sizeof(Letter_G_Lines[0])},
-  {'H', Letter_H_Lines, sizeof(Letter_H_Lines) / sizeof(Letter_H_Lines[0])},
-  {'I', Letter_I_Lines, sizeof(Letter_I_Lines) / sizeof(Letter_I_Lines[0])},
-  {'J', Letter_J_Lines, sizeof(Letter_J_Lines) / sizeof(Letter_J_Lines[0])},
-  {'K', Letter_K_Lines, sizeof(Letter_K_Lines) / sizeof(Letter_K_Lines[0])},
-  {'L', Letter_L_Lines, sizeof(Letter_L_Lines) / sizeof(Letter_L_Lines[0])},
-  {'M', Letter_M_Lines, sizeof(Letter_M_Lines) / sizeof(Letter_M_Lines[0])},
-  {'N', Letter_N_Lines, sizeof(Letter_N_Lines) / sizeof(Letter_N_Lines[0])},
-  {'O', Letter_O_Lines, sizeof(Letter_O_Lines) / sizeof(Letter_O_Lines[0])},
-  {'P', Letter_P_Lines, sizeof(Letter_P_Lines) / sizeof(Letter_P_Lines[0])},
-  {'Q', Letter_Q_Lines, sizeof(Letter_Q_Lines) / sizeof(Letter_Q_Lines[0])},
-  {'R', Letter_R_Lines, sizeof(Letter_R_Lines) / sizeof(Letter_R_Lines[0])},
-  {'S', Letter_S_Lines, sizeof(Letter_S_Lines) / sizeof(Letter_S_Lines[0])},
-  {'T', Letter_T_Lines, sizeof(Letter_T_Lines) / sizeof(Letter_T_Lines[0])},
-  {'U', Letter_U_Lines, sizeof(Letter_U_Lines) / sizeof(Letter_U_Lines[0])},
-  {'V', Letter_V_Lines, sizeof(Letter_V_Lines) / sizeof(Letter_V_Lines[0])},
-  {'W', Letter_W_Lines, sizeof(Letter_W_Lines) / sizeof(Letter_W_Lines[0])},
-  {'X', Letter_X_Lines, sizeof(Letter_X_Lines) / sizeof(Letter_X_Lines[0])},
-  {'Y', Letter_Y_Lines, sizeof(Letter_Y_Lines) / sizeof(Letter_Y_Lines[0])},
-  {'Z', Letter_Z_Lines, sizeof(Letter_Z_Lines) / sizeof(Letter_Z_Lines[0])},
-  {'$', Symbol_ce_kwh_Lines, sizeof(Symbol_ce_kwh_Lines) / sizeof(Symbol_ce_kwh_Lines[0])},
-};
-int drawletter(char chr, int x, int y, int scale) {
-
+int draw_tri_letter(char chr, int x, int y, int scale)
+{
   if (chr == ' ')
-    return (pgm_read_word(&Letter_X_Lines[0]) * scale) / 127;
+    return (font_tri_geometry[0].advance * scale) / TRI_FONT_SCALE;
 
-  const int16_t *lines = font_map[0].lines;
-  const int16_t *end  = lines + font_map[0].size;
-  for (unsigned i=0; i< sizeof(font_map)/sizeof(font_map[0]); i++) {
-    if (font_map[i].chr == chr) {
-      lines = font_map[i].lines;
-      end = lines + font_map[i].size;
+  // default to first charater
+  const int16_t *tris = font_tri_geometry[0].tris;
+  const int16_t *end  = tris + font_tri_geometry[0].size;
+  uint16_t horiz_advance = font_tri_geometry[0].advance;
+
+  for (unsigned i=0; i< sizeof(font_tri_geometry)/sizeof(font_tri_geometry[0]); i++) {
+    if (font_tri_geometry[i].chr == chr) {
+      tris = font_tri_geometry[i].tris;
+      end = tris + font_tri_geometry[i].size;
+      horiz_advance = font_tri_geometry[i].advance;
       break;
     }
   }
-  uint16_t horiz_advance = (pgm_read_word(lines++) * scale) / 127;
-  while (lines < end) {
-    uint16_t v1 = pgm_read_word(lines + 0)*2;
-    uint16_t v2 = pgm_read_word(lines + 1)*2;
-    const int ax = (int(int8_t(pgm_read_byte(vertices+v1+0))) * scale) / 127;
-    const int ay = (int(int8_t(pgm_read_byte(vertices+v1+1))) * scale) / 127;
-    const int bx = (int(int8_t(pgm_read_byte(vertices+v2+0))) * scale) / 127;
-    const int by = (int(int8_t(pgm_read_byte(vertices+v2+1))) * scale) / 127;
-    tft.drawLine(ax+x,ay+y, bx+x, by+y, tft_color);
-    lines += 2;
+  while (tris < end) {
+    uint16_t v1 = pgm_read_word(tris++)*2;
+    uint16_t v2 = pgm_read_word(tris++)*2;
+    uint16_t v3 = pgm_read_word(tris++)*2;
+    const int ax = int32_t((int16_t(pgm_read_word(tri_font_vertices+v1+0))) * scale) / LINE_FONT_SCALE;
+    const int ay = int32_t((int16_t(pgm_read_word(tri_font_vertices+v1+1))) * scale) / LINE_FONT_SCALE;
+    const int bx = int32_t((int16_t(pgm_read_word(tri_font_vertices+v2+0))) * scale) / LINE_FONT_SCALE;
+    const int by = int32_t((int16_t(pgm_read_word(tri_font_vertices+v2+1))) * scale) / LINE_FONT_SCALE;
+    const int cx = int32_t((int16_t(pgm_read_word(tri_font_vertices+v3+0))) * scale) / LINE_FONT_SCALE;
+    const int cy = int32_t((int16_t(pgm_read_word(tri_font_vertices+v3+1))) * scale) / LINE_FONT_SCALE;
+    tft.fillTriangle(x+ax,y-ay, x+bx, y-by, x+cx, y-cy, tft_color);
   }
-  return horiz_advance;
+  return (int32_t(horiz_advance) * scale) / LINE_FONT_SCALE;
+}
+
+int draw_line_letter(char chr, int x, int y, int scale) {
+
+  if (chr == ' ')
+    return (font_line_geometry[0].advance * scale) / LINE_FONT_SCALE;
+
+  // default to first charater
+  const int16_t *lines = font_line_geometry[0].lines;
+  const int16_t *end  = lines + font_line_geometry[0].size;
+  uint16_t horiz_advance = font_line_geometry[0].advance;
+
+  for (unsigned i=0; i< sizeof(font_line_geometry)/sizeof(font_line_geometry[0]); i++) {
+    if (font_line_geometry[i].chr == chr) {
+      lines = font_line_geometry[i].lines;
+      end = lines + font_line_geometry[i].size;
+      horiz_advance = font_line_geometry[i].advance;
+      break;
+    }
+  }
+  while (lines < end) {
+    uint16_t v1 = pgm_read_word(lines++)*2;
+    uint16_t v2 = pgm_read_word(lines++)*2;
+    const int ax = (int32_t(int16_t(pgm_read_word(line_font_vertices+v1+0))) * scale) / LINE_FONT_SCALE;
+    const int ay = (int32_t(int16_t(pgm_read_word(line_font_vertices+v1+1))) * scale) / LINE_FONT_SCALE;
+    const int bx = (int32_t(int16_t(pgm_read_word(line_font_vertices+v2+0))) * scale) / LINE_FONT_SCALE;
+    const int by = (int32_t(int16_t(pgm_read_word(line_font_vertices+v2+1))) * scale) / LINE_FONT_SCALE;
+    tft.drawLine(x+ax,y-ay, x+bx, y-by, tft_color);
+  }
+  return (int32_t(horiz_advance) * scale) / LINE_FONT_SCALE;
 }
 int drawtext(const char *text, int x, int y, int scale)
 {
   int hz_advance = 0;
   while (*text) {
-    hz_advance += drawletter(*text, x+hz_advance, y, scale);
+    hz_advance += draw_line_letter(*text, x+hz_advance, y, scale);
+    //hz_advance += draw_tri_letter(*text, x+hz_advance, y, scale);
     text++;
   }
   return hz_advance;

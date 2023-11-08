@@ -5,8 +5,8 @@ class OBJLoader:
     def __init__(self, file_path):
         self.objects = {}  # Dictionary to store multiple objects
         self.current_object = None  # Name of the current object
-        self.vertices = [] # vertices are common for all..
-        self.normals = []  # normals are common for all?
+        self.vertices = [] # vertices are common for all
+        self.normals = []  # normals are common for all
         self.load(file_path)
 
     def load(self, file_path):
@@ -107,53 +107,57 @@ class OBJLoader:
 
     def print(self, dc, text, x,y, scale):
         char_map = {
-            '0' : 'Number.0',
-            '1' : 'Number.1',
-            '2' : 'Number.2',
-            '3' : 'Number.3',
-            '4' : 'Number.4',
-            '5' : 'Number.5',
-            '6' : 'Number.6',
-            '7' : 'Number.7',
-            '8' : 'Number.8',
-            '9' : 'Number.9',
-            '.' : 'Number.dot',
-            '+' : 'Number.plus',
-            '-' : 'Number.minus',
-            ':' : 'Number.dot2',
-            'A' : 'Letter.A',
-            'B' : 'Letter.B',
-            'C' : 'Letter.C',
-            'D' : 'Letter.D',
-            'E' : 'Letter.E',
-            'F' : 'Letter.F',
-            'G' : 'Letter.G',
-            'H' : 'Letter.H',
-            'I' : 'Letter.I',
-            'J' : 'Letter.J',
-            'K' : 'Letter.K',
-            'L' : 'Letter.L',
-            'M' : 'Letter.M',
-            'N' : 'Letter.N',
-            'O' : 'Letter.O',
-            'P' : 'Letter.P',
-            'Q' : 'Letter.Q',
-            'R' : 'Letter.R',
-            'S' : 'Letter.S',
-            'T' : 'Letter.T',
-            'U' : 'Letter.U',
-            'V' : 'Letter.V',
-            'W' : 'Letter.W',
-            'X' : 'Letter.X',
-            'Y' : 'Letter.Y',
-            'Z' : 'Letter.Z',
-            '$' : 'Symbol.ce_kwh'
+            '.' : 'Letter__dot',
+            '+' : 'Letter__plus',
+            '-' : 'Letter__minus',
+            ':' : 'Letter__colon',
+            '=' : 'Letter__equals',
+            '/' : 'Letter__slash',
+            '#' : 'Letter__hash',
+            '*' : 'Letter__asterisk',
+            '$' : 'Letter__kwh',
+            '0' : 'Letter_0',
+            '1' : 'Letter_1',
+            '2' : 'Letter_2',
+            '3' : 'Letter_3',
+            '4' : 'Letter_4',
+            '5' : 'Letter_5',
+            '6' : 'Letter_6',
+            '7' : 'Letter_7',
+            '8' : 'Letter_8',
+            '9' : 'Letter_9',
+            'A' : 'Letter_A',
+            'B' : 'Letter_B',
+            'C' : 'Letter_C',
+            'D' : 'Letter_D',
+            'E' : 'Letter_E',
+            'F' : 'Letter_F',
+            'G' : 'Letter_G',
+            'H' : 'Letter_H',
+            'I' : 'Letter_I',
+            'J' : 'Letter_J',
+            'K' : 'Letter_K',
+            'L' : 'Letter_L',
+            'M' : 'Letter_M',
+            'N' : 'Letter_N',
+            'O' : 'Letter_O',
+            'P' : 'Letter_P',
+            'Q' : 'Letter_Q',
+            'R' : 'Letter_R',
+            'S' : 'Letter_S',
+            'T' : 'Letter_T',
+            'U' : 'Letter_U',
+            'V' : 'Letter_V',
+            'W' : 'Letter_W',
+            'X' : 'Letter_X',
+            'Y' : 'Letter_Y',
+            'Z' : 'Letter_Z',
         }
         for char in text:
             if char == ' ': # specially handle space
-                x += self.horiz_advance('Letter.X') * scale
+                x += self.horiz_advance('Letter_X') * scale
             else:
-                char_object = char_map.get(char, 'Number.dot')  # Default to dot
+                char_object = char_map.get(char, 'Letter_dot')  # Default to dot
                 self.drawlines(dc, char_object, x,y, scale)
                 x += self.horiz_advance(char_object) * scale
 
@@ -165,13 +169,14 @@ if __name__ == '__main__':
 
     vfont = OBJLoader("./vfont.obj")
 
-    vfont.print_as_c_header('./tft_display/vfont.h')
+    # no longer needed, use blender_fontmaker.py
+    #vfont.print_as_c_header('./tft_display/vfont.h')
 
     with DisplayController('COM7') as dc:
         dc.sync()
         dc.color(0xff,0xff,0xff)
         dc.clear()
-        vfont.print(dc, "..-+BAUHAUS 93 FONT+-..", 0, 30, 30)
+        vfont.print(dc, "*.-+BAUHAUS 93 FONT+-.*", 0, 30, 30)
         vfont.print(dc, '0123456789.+-:', 0,100,60)
         vfont.print(dc, 'ABCDEFGHIJKLMN', 0,160,60)
         vfont.print(dc, 'OPQRSTUVWXYZ', 0,220,60)

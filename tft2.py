@@ -121,12 +121,17 @@ class DisplayController:
 if __name__ == '__main__':
     with DisplayController('COM7') as display:
         display.sync()
-        display.bgcolor(0xff,00,00)
+        display.bgcolor(0x20,0x60,0x70)
         display.clear()
-        display.color(0x80,0xff,0x30)
-        display.vtext("TEST", 0, 100, 200)
+        display.color(0xff,0xff,0xff)
+
+        display.vtext('.-+*BAUHAUS 93 FONT*+-.', 0, 30, 30)
+        display.vtext('0123456789.+-:=/#*$', 0,100,60)
+        display.vtext('ABCDEFGHIJKLMN', 0,160,60)
+        display.vtext('OPQRSTUVWXYZ', 0,220,60)
+
         display.color(0xff, 0xff, 0xff)
-        display.box(0, 200, 479, 319)
+        display.box(0, 300, 479, 319)
         #display.color(0x10,0x80,0xff)
         #display.fillcircle(240,160,100)
         display.sync()
