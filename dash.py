@@ -6,10 +6,15 @@ import argparse
 import threading
 import pytz
 import traceback
+import platform
 
 # Define default values for price margin and COM port
 DEFAULT_PRICE_MARGIN = 0.0
 DEFAULT_COM_PORT = 'COM7'
+
+
+if platform.system() == 'Linux':
+    DEFAULT_COM_PORT = '/dev/ttyUSB0'
 
 
 # Event-related variables
