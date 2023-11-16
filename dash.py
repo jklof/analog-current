@@ -10,11 +10,11 @@ import platform
 
 # Define default values for price margin and COM port
 DEFAULT_PRICE_MARGIN = 0.0
-DEFAULT_COM_PORT = 'COM7'
+DEFAULT_PORT = 'COM7'
 
 
 if platform.system() == 'Linux':
-    DEFAULT_COM_PORT = '/dev/ttyUSB0'
+    DEFAULT_PORT = '/dev/ttyUSB0'
 
 
 # Event-related variables
@@ -22,6 +22,12 @@ g_quit_flag = False
 g_lock = threading.Lock()
 g_condition = threading.Condition(g_lock)
 
+def quit():
+    global g_lock, g_quit_flag
+    with g_lock:
+        print("dash quit")
+        g_quit_flag = True
+        g_condition.notify_all()
 
 def fetch_porssisahko_net_all():
     """
@@ -215,6 +221,7 @@ class Dash:
             y = price / max_price
             self.dc.color(*select_color(price))
             self.dc.line(int(xo + x*dx), int(yo), int(xo+x*dx), int(yo-y*dy))
+        self.dc.sync()
 
 
     def next_update_time_in_seconds(self):
@@ -237,9 +244,7 @@ class Dash:
                     g_condition.wait(self.next_update_time_in_seconds())
         except:
             traceback.print_exc()
-            with g_lock:
-                g_quit_flag = True
-                g_condition.notify_all()
+            quit()
 
 
 class Clock:
@@ -267,6 +272,7 @@ class Clock:
         dc.box(0,294,110,310)
         dc.color(*text_color())
         dc.vtext(f'TIME {timestr}', 0, 310, 40)
+        self.dc.sync()
 
     def next_update_time_in_seconds(self):
         """
@@ -288,9 +294,7 @@ class Clock:
                     g_condition.wait(self.next_update_time_in_seconds())
         except:
             traceback.print_exc()
-            with g_lock:
-                g_quit_flag = True
-                g_condition.notify_all()
+            quit()
 
 
 if __name__ == '__main__':
@@ -300,14 +304,21 @@ if __name__ == '__main__':
 
     # Add command-line arguments for price margin and COM port
     parser.add_argument('--price-margin', type=float, default=DEFAULT_PRICE_MARGIN, help='Price margin to add to the retrieved price.')
-    parser.add_argument('--com-port', default=DEFAULT_COM_PORT, help='COM port for the display controller.')
+    parser.add_argument('--port', default=DEFAULT_PORT, help='serial port for the display controller.')
+    parser.add_argument('--pygame', action='store_true', help='Use pygame display' )
     args = parser.parse_args()
 
-    with DisplayController(args.com_port) as dc:
+    if args.pygame:
+        from tftpyg import DisplayController
+    else:
+        from tft2 import DisplayController
+
+    with DisplayController(args.port) as dc:
 
         dc.sync()
         dc.clear()
-        dc.vtext("DASH", 0,0, 150)
+        dc.vtext("DASH", 0,150, 150)
+        dc.sync()
 
         clock = Clock(dc)
         dash = Dash(dc)
@@ -321,9 +332,7 @@ if __name__ == '__main__':
             pass
 
         finally:
-            with g_lock:
-                g_quit_flag = True
-                g_condition.notify_all()
+            quit()
 
         clock.join()
         dash.join()
